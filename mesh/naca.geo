@@ -43,7 +43,6 @@ Macro SymmetricAirfoil
     upper[] = {};
     lower[] = {};
     For x In {increment: 1 - increment: increment}
-        // Printf("%f", x);
         Call NACA00;
         Point(ce++) = {x, y, 0, AirfoilLc};
         pointId = ce - 1;
@@ -64,24 +63,56 @@ Macro SymmetricAirfoil
     AirfoilLoop = ce - 1;
 
     Arguments[]  = {te, upper[], le, lower[]};
-    Arguments[]  = {te, upper[{0, 1}]};
-    // Call Offset;
+    Call Offset;
+    Line(ce++) = {upper[0], blPoints[0]};
+    upperVertical = ce - 1;
+    Line(ce++) = {te, blPoints[#blPoints[] - 1]};
+    teVertical = ce - 1;
+    Line(ce++) = {blPoints[#blPoints[] - 1], blPoints[0]};
+    upperBlLine = ce - 1;
+    Line(ce++) = {lower[#lower[] - 1], blPoints[#blPoints[] - 2]};
+    lowerVertical = ce - 1;
+    Line(ce++) = {blPoints[#blPoints[] - 2], blPoints[#blPoints[] - 1]};
+    lowerBlLine = ce - 1;
+    Transfinite Line{upperVertical, teVertical, lowerVertical} = 10 Using Progression 1.2;
+    Transfinite Line{upperBlLine, upperTe, lowerBlLine, lowerTe} = 1;
+    Transfinite Line{BlLine, AirfoilSurface} = 1.0 / AirfoilLc Using Bump 4;
+    Line Loop(ce++) = {teVertical, upperBlLine, -upperVertical, -upperTe};
+    Surface(ce++) = ce - 2;
+    upperTeSurface = ce - 1;
+    Line Loop(ce++) = {lowerVertical, lowerBlLine, -teVertical, -lowerTe};
+    Surface(ce++) = ce - 2;
+    lowerTeSurface = ce - 1;
+    Line Loop(ce++) = {upperVertical, BlLine, -lowerVertical, -AirfoilSurface};
+    Surface(ce++) = ce - 2;
+    BlSurface = ce - 1;
+    Transfinite Surface{upperTeSurface, lowerTeSurface, BlSurface};
+    Recombine Surface{upperTeSurface, lowerTeSurface, BlSurface};
+
+    Line Loop(ce++) = {upperBlLine, BlLine, lowerBlLine};
+    AirfoilLoop = ce - 1;
 Return
 
 Macro Offset
     points[] = Arguments[];
-    distance = 0.1;
+    distance = 0.01;
+    blPoints[] = {};
     For p In {0: #points[] - 1}
-        center = points[(p + 1) % #points[]];
-        Arguments[] = {points[p], center, points[(p + 2) % #points[]]};
+        start  = points[p];
+        middle = points[(p + 1) % #points[]];
+        finish = points[(p + 2) % #points[]];
+        Arguments[] = {Point{start}, Point{middle}, Point{finish}};
         Call Bisector;
         Arguments[] = Results[];
         Arguments[3] = distance;
         Call Scale;
-        Arguments[0] = center;
-        Arguments[{1:3}] = Results[{0:2}];
+        middle = points[(p + 1) % #points[]];
+        Arguments[] = {Point{middle}, Results[{0:2}]};
         Call Translated;
         Point(ce++) = {Results[0], Results[1], Results[2]};
+        blPoints[] += ce - 1;
     EndFor
+    BSpline(ce++) = blPoints[{0:#blPoints[] - 2}];
+    BlLine = ce - 1;
 Return
 
