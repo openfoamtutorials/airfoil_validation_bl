@@ -63,9 +63,9 @@ Macro SymmetricAirfoil
     Line Loop(ce++) = {upperTe, AirfoilSurface, lowerTe};
     AirfoilLoop = ce - 1;
 
-    Arguments[]  = {te, upper[], le, lower[]}; 
-    Arguments[]  = {te, upper[{0, 1}]}; 
-    Call Offset;
+    Arguments[]  = {te, upper[], le, lower[]};
+    Arguments[]  = {te, upper[{0, 1}]};
+    // Call Offset;
 Return
 
 Macro Offset

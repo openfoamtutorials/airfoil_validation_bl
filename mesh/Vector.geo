@@ -1,22 +1,21 @@
 // This contains subroutines to get vector directions.
 // All Macros expect Arguments[] and outputs Results[].
+// Gmsh quirk: Results cannot be accessed on same line of Call, e.g. Call X; x = Results[0];
 
 Macro Vector
-    start  = Arguments[0];
-    finish = Arguments[1];
-    vector[] = Point{finish};
-    coord[]  = Point{start};
-    vector[0] -= coord[0];
-    vector[1] -= coord[1];
-    vector[2] -= coord[2];
-    Results[] = vector[];
+    start[] = Arguments[{0:2}];
+    Results[]  = Arguments[{3:5}];
+    Results[0] -= start[0];
+    Results[1] -= start[1];
+    Results[2] -= start[2];
 Return
 
 Macro Scale
     Results[] = Arguments[{0:2}];
-    Results[0] *= Arguments[3];
-    Results[1] *= Arguments[3];
-    Results[2] *= Arguments[3];
+    scaleFactor = Arguments[3];
+    Results[0] *= scaleFactor;
+    Results[1] *= scaleFactor;
+    Results[2] *= scaleFactor;
 Return
 
 Macro Magnitude
@@ -29,26 +28,11 @@ Macro Normalize
     Call Scale;
 Return
 
-Macro Bisector
-    start  = Arguments[0];
-    middle = Arguments[1];
-    finish = Arguments[2];
-    Arguments[] = {middle, start};  Call Vector;
-    bisector[] = Results[];
-    Arguments[] = {middle, finish}; Call Vector;
-    bisector[0] += Results[0];
-    bisector[1] += Results[1];
-    bisector[2] += Results[2];
-    Arguments[0] = bisector[0] / 2.0;
-    Arguments[1] = bisector[1] / 2.0;
-    Arguments[2] = bisector[2] / 2.0;
-    Call Normalize;
-Return
-
 Macro Add
-    Results[0] = Arguments[0] + Arguments[3];
-    Results[1] = Arguments[1] + Arguments[4];
-    Results[2] = Arguments[2] + Arguments[5];
+    Results[] = Arguments[{0:2}];
+    Results[0] += Arguments[3];
+    Results[1] += Arguments[4];
+    Results[2] += Arguments[5];
 Return
 
 Macro Cross
@@ -56,11 +40,10 @@ Macro Cross
 Return
 
 Macro Translated
-    point = Arguments[0];
-    Results[] = Point{point};
-    Results[0] += Arguments[1];
-    Results[1] += Arguments[2];
-    Results[2] += Arguments[3];
+    Results[] = Arguments[{0:2}];
+    Results[0] += Arguments[3];
+    Results[1] += Arguments[4];
+    Results[2] += Arguments[5];
 Return
 
 Macro Dot
@@ -72,13 +55,59 @@ Return
 Macro Angle
     firstVector[] = Arguments[{0:2}];
     secondVector[] = Arguments[{3:5}];
-    Arguments[] = firstVector[];
-    Call Normalize;
-    firstNorm[] = Results[];
-    Arguments[] = secondVector[];
-    Call Normalize;
-    secondNorm[] = Results[];
-    Arguments[] = {firstNorm[], secondNorm[]};
-    Call Dot;
-    Results[0] = Acos(Results[0]);
+    Call Cross;
+    cross = Results[0];
+    Arguments[] = firstVector[]; Call Normalize;
+    firstNorm[] = Results[{0:2}];
+    Arguments[] = secondVector[]; Call Normalize;
+    secondNorm[] = Results[{0:2}];
+    Arguments[] = {firstNorm[], secondNorm[]}; Call Dot;
+    // Sorry for the meandering logic, but Else is not working as expected.
+    dot = Results[0];
+    sign = 1.0;
+    Results[0] = 0.0;
+    If (cross < 0)
+        sign = -1.0;
+        Results[0] = 2 * Pi;
+    EndIf
+    Results[0] += sign * Acos(dot);
 Return
+
+// Test Angle.
+// Arguments[] = {1, 0, 0, 0, -1, 0};
+// Call Angle;
+// Printf("%f", Results[0] / Pi * 180);
+
+Macro Rotated
+    vector = Arguments[{0:2}];
+    angle = Arguments[3]; // radians.
+    Results[0] = vector[0] * Cos(angle) - vector[1] * Sin(angle);
+    Results[1] = vector[0] * Sin(angle) + vector[1] * Cos(angle);
+    Results[2] = 0;
+    // Printf("INFO: Rotated {%f, %f} by %f deg to {%f, %f}", vector[0], vector[1], angle / Pi * 180, Results[0], Results[1]);
+Return
+
+// Test Rotated.
+// Arguments[] = {1, 0, 0, 3 * Pi / 2.0};
+// Call Rotated;
+// Printf("%f, %f, %f", Results[0], Results[1], Results[2]);
+
+Macro Bisector
+    start  = Arguments[{0:2}];
+    middle = Arguments[{3:5}];
+    finish = Arguments[{6:8}];
+    Arguments[] = {middle[], start[]};  Call Vector;
+    firstVector[] = Results[];
+    Arguments[] = {middle[], finish[]}; Call Vector;
+    secondVector[] = Results[];
+    Arguments[] = {firstVector[], secondVector[]}; Call Angle;
+    angle = Results[0];
+    Arguments[] = {firstVector[], angle / 2.0}; Call Rotated;
+    Arguments[] = Results[]; Call Normalize;
+Return
+
+// Test Bisector.
+Arguments[] = {0, -1, 0, 0, 0, 0, -1, 0, 0}; Call Bisector;
+Printf("%f, %f, %f", Results[0], Results[1], Results[2]);
+
+
